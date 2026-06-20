@@ -1,0 +1,10 @@
+{
+  "generator": "senior-fullstack/fullstack_scaffolder.py",
+  "stack": "nextjs-graphql-postgres",
+  "defaults": {
+    "frontend": "nextjs-app-router",
+    "backend": "graphql-node",
+    "database": "postgresql-prisma",
+    "auth": "none"
+  }
+}
