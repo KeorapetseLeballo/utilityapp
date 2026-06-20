@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  RESIDENT
+  PROVIDER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum OccurrenceStatus {
+  SCHEDULED
+  COMPLETED
+  SKIPPED
+  DISPUTED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  PAYMENT_FAILED
+  VISIT_REMINDER
+  SUBSCRIPTION_PAUSED
+  MESSAGE_RECEIVED
+  PROVIDER_APPROVED
+  DISPUTE_OPENED
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String
+  name           String
+  phone          String?
+  role           UserRole      @default(RESIDENT)
+  neighborhoodId String?
+  neighborhood   Neighborhood? @relation(fields: [neighborhoodId], references: [id])
+  postcode       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  providerProfile ProviderProfile?
+  subscriptions   Subscription[]   @relation("ResidentSubscriptions")
+  reviews         Review[]
+  messages        Message[]
+  notifications   Notification[]
+  sessions        Session[]
+
+  @@index([neighborhoodId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model Neighborhood {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  postcodes   String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            User[]
+  listings         ServiceListing[]
+  providerProfiles ProviderProfile[]
+}
+
+model ProviderProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  neighborhoodId     String
+  neighborhood       Neighborhood       @relation(fields: [neighborhoodId], references: [id])
+  bio                String?
+  verificationStatus VerificationStatus @default(PENDING)
+  insuranceUrl       String?
+  licenseUrl         String?
+  backgroundCheck    Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  listings ServiceListing[]
+
+  @@index([neighborhoodId])
+  @@index([verificationStatus])
+}
+
+model ServiceCategory {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  name        String
+  description String?
+  icon        String?
+  listings    ServiceListing[]
+}
+
+model ServiceListing {
+  id             String          @id @default(cuid())
+  providerId     String
+  provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       ServiceCategory @relation(fields: [categoryId], references: [id])
+  neighborhoodId String
+  neighborhood   Neighborhood    @relation(fields: [neighborhoodId], references: [id])
+  title          String
+  description    String
+  monthlyPrice   Int
+  frequency      String
+  capacity       Int             @default(10)
+  status         ListingStatus   @default(DRAFT)
+  autoAccept     Boolean         @default(false)
+  categoryFields Json            @default("{}")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([neighborhoodId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  residentId       String
+  resident         User               @relation("ResidentSubscriptions", fields: [residentId], references: [id])
+  listingId        String
+  listing          ServiceListing     @relation(fields: [listingId], references: [id])
+  status           SubscriptionStatus @default(PENDING)
+  startDate        DateTime
+  billingDay       Int
+  scheduleDays     Int[]
+  scheduleTime     String?
+  pausedUntil      DateTime?
+  cancelledAt      DateTime?
+  noticeDays       Int                @default(7)
+  emergencyContact Json?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  occurrences Occurrence[]
+  payments    Payment[]
+  reviews     Review[]
+  messages    Message[]
+
+  @@index([residentId])
+  @@index([listingId])
+  @@index([status])
+}
+
+model Occurrence {
+  id             String           @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  scheduledAt    DateTime
+  status         OccurrenceStatus @default(SCHEDULED)
+  completedAt    DateTime?
+  disputedAt     DateTime?
+  disputeReason  String?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([subscriptionId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  subscriptionId  String
+  subscription    Subscription  @relation(fields: [subscriptionId], references: [id])
+  amount          Int
+  platformFee     Int
+  providerAmount  Int
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  periodStart     DateTime
+  periodEnd       DateTime
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  reviewerId     String
+  reviewer       User         @relation(fields: [reviewerId], references: [id])
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([subscriptionId, reviewerId])
+  @@index([subscriptionId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  flagged        Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([read])
+}

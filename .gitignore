@@ -1,6 +1,12 @@
 venv/
 .env
+.env.local
 __pycache__/
 *.pyc
 db.sqlite3
 node_modules/
+.next/
+dist/
+coverage/
+tsconfig.tsbuildinfo
+package-lock.json
