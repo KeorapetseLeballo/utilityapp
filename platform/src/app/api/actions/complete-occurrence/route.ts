@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await completeOccurrence(occurrenceId, user.id);
-    return NextResponse.redirect(new URL('/provider', request.url));
+    return NextResponse.redirect(new URL('/provider', request.url), { status: 303 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed';
     return NextResponse.json({ error: message }, { status: 400 });

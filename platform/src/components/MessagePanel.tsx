@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { graphqlFetch } from '@/lib/client';
 
 type Message = {
@@ -15,17 +15,17 @@ export function MessagePanel({ subscriptionId }: { subscriptionId: string }) {
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     const data = await graphqlFetch<{ messages: Message[] }>(
       `query($id: ID!) { messages(subscriptionId: $id) { id body createdAt sender { name } } }`,
       { id: subscriptionId },
     );
     setMessages(data.messages);
-  }
+  }, [subscriptionId]);
 
   useEffect(() => {
     load().catch(() => setError('Could not load messages'));
-  }, [subscriptionId]);
+  }, [load]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

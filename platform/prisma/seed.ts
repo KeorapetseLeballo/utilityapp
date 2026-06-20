@@ -31,8 +31,7 @@ async function main() {
     });
   }
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@hearthlane.local' },
+  const _admin = await prisma.user.upsert({
     update: {},
     create: {
       email: 'admin@hearthlane.local',
@@ -44,8 +43,7 @@ async function main() {
     },
   });
 
-  const resident = await prisma.user.upsert({
-    where: { email: 'resident@hearthlane.local' },
+  const _resident = await prisma.user.upsert({
     update: {},
     create: {
       email: 'resident@hearthlane.local',
